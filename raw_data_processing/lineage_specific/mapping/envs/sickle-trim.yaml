@@ -1,0 +1,13 @@
+name: sickle-trim
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1=main
+  - glpk=4.65=h9202a9a_1004
+  - gmp=6.2.1=h58526e2_0
+  - libgcc-ng=9.1.0=hdf63c60_0
+  - libstdcxx-ng=11.2.0=he4da1e4_13
+  - sickle-trim=1.33=hed695b0_5
+  - zlib=1.2.11=h7b6447c_3

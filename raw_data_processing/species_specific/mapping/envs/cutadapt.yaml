@@ -1,0 +1,31 @@
+name: cutadapt
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1=main
+  - bz2file=0.98=py37_1
+  - ca-certificates=2021.10.8=ha878542_0
+  - certifi=2021.10.8=py37h89c1867_1
+  - cutadapt=1.18=py37h14c3975_1
+  - glpk=4.65=h9202a9a_1004
+  - gmp=6.2.1=h58526e2_0
+  - libedit=3.1.20181209=hc058e9b_0
+  - libffi=3.2.1=hd88cf55_4
+  - libgcc-ng=9.1.0=hdf63c60_0
+  - libstdcxx-ng=9.1.0=hdf63c60_0
+  - ncurses=6.1=he6710b0_1
+  - openssl=1.1.1m=h7f8727e_0
+  - pigz=2.4=h84994c4_0
+  - pip=19.3.1=py37_0
+  - python=3.7.5=h0371630_0
+  - python_abi=3.7=2_cp37m
+  - readline=7.0=h7b6447c_5
+  - setuptools=42.0.2=py37_0
+  - sqlite=3.30.1=h7b6447c_0
+  - tk=8.6.8=hbc83047_0
+  - wheel=0.33.6=py37_0
+  - xopen=0.7.3=py_0
+  - xz=5.2.4=h14c3975_4
+  - zlib=1.2.11=h7b6447c_3

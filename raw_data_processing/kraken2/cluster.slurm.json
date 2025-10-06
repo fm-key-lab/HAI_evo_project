@@ -1,0 +1,87 @@
+{
+    "documenation": {
+        "cmdline": "Use with snakemake --cluster-config cluster.slurm.json --cluster 'sbatch --job-name {cluster.job-name} --ntasks {cluster.ntasks} --cpus-per-task {cluster.cpus-per-task} --mem {cluster.mem} --mem-per-cpu {cluster.mem-per-cpu} --time {cluster.time} --mail-user {cluster.mail-user} --mail-type {cluster.mail-type} --error {cluster.error} --output {cluster.output}'"
+    },
+    "__default__" : {
+        "job-name"       : "SM.{rule}",
+        "time"           : "01:00:00",
+        "ntasks"         : 1,
+        "cpus-per-task"  : 1,
+        "mem"            : 2000,
+        "output"         : "logs/{rule}_%j.out_err.txt",
+        "error"          : "logs/{rule}_%j.out_err.txt",
+        "mail-user"      : "fenk@mpiib-berlin.mpg.de",
+        "mail-type"      : "FAIL"
+    },
+    "taxonomic_ranks" : {
+        "time"           : "00:10:00"
+    },
+    "make_data_links" : {
+        "time"           : "00:15:00"
+    },
+    "cutadapt" : {},
+    "sickle2050" : {},
+    "FQ2FA" : {},
+    "kraken2" : {
+        "mem"            : 100000,
+        "cpus-per-task"  : 4,
+        "time"           : "2:00:00"
+    },
+    "bracken2" : {},
+    "summarizeKrakRes" : {},
+    "download_mlst_db" : {},
+    "srst2" : {
+        "time"           : "02:00:00",
+        "cpus-per-task"  : 4,
+        "mem"            : 4000
+    },
+    "tax_rank_group" : {
+        "job-name"       : "SM.{name}",
+        "time"           : "01:00:00",
+        "output"         : "logs/{name}_%j.out_err.txt",
+        "error"          : "logs/{name}_%j.out_err.txt",
+    },
+    "trim_and_fq2fa" : {
+        "job-name"       : "SM.{name}",
+        "time"           : "01:00:00",
+        "output"         : "logs/{name}_%j.out_err.txt",
+        "error"          : "logs/{name}_%j.out_err.txt",
+    },
+    "kraken_bracken" : {
+        "job-name"       : "SM.{name}",
+        "time"           : "02:00:00",
+        "cpus-per-task"  : 4,
+        "mem"            : 120000,
+        "output"         : "logs/{name}_%j.out_err.txt",
+        "error"          : "logs/{name}_%j.out_err.txt",
+    },
+    "spades" : {
+        "job-name"       : "SM.{name}",
+        "time"           : "01:00:00",
+        "cpus-per-task"  : 1,
+        "mem"            : 16000,
+        "output"         : "logs/{name}_%j.out_err.txt",
+        "error"          : "logs/{name}_%j.out_err.txt"
+    },
+    "bakta" : {
+        "output"         : "logs/prokka_%j.out_err.txt",
+        "error"          : "logs/prokka_%j.out_err.txt",
+        "cpus-per-task"  : 1,
+        "time"           : "02:00:00",
+        "mem"            : 16000
+    },
+    "assemble_annotate" : {
+        "job-name"       : "SM.{name}",
+        "time"           : "03:00:00",
+        "cpus-per-task"  : 8,
+        "mem"            : 16000,
+        "output"         : "logs/{name}_%j.out_err.txt",
+        "error"          : "logs/{name}_%j.out_err.txt",
+    },
+    "sum_and_clean" : {
+        "job-name"       : "SM.{name}",
+        "time"           : "01:00:00",
+        "output"         : "logs/{name}_%j.out_err.txt",
+        "error"          : "logs/{name}_%j.out_err.txt",
+    }
+}

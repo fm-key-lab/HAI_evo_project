@@ -1,0 +1,274 @@
+############################################
+# LIEBERMAN LAB SNAKEFILE FOR MAPPING STEP #
+############################################
+''' PRE-SNAKEMAKE '''
+
+import sys
+import os
+SCRIPTS_DIRECTORY = "./scripts"
+sys.path.insert(0, SCRIPTS_DIRECTORY)
+
+## import all modules used from mapping_modules.py (./scripts/mapping_modules.py)
+from mapping_modules import *
+
+## Define couple of lists from samples.csv
+## Format: Path,Sample,ReferenceGenome,ProviderName,Subject
+spls = "samples.csv"
+[PATH_ls, SAMPLE_ls, REF_Genome_ls, PROVIDER_ls, CLADEID_ls] = read_samplesCSV(spls)
+# Write sample_info.csv for each sample
+split_samplesCSV(PATH_ls,SAMPLE_ls,REF_Genome_ls,PROVIDER_ls,CLADEID_ls) ## Multiple genomes will be still written on one line as this info is not read from this file
+CLADES_ls = set(CLADEID_ls) ## get unique Patient IDs
+
+## Expand lists if multiple genomes are used within a sample
+REF_Genome_ext_ls = []
+SAMPLE_ext_ls = []
+for sampleID, refgenomes in zip(SAMPLE_ls, REF_Genome_ls):
+    for refgenome in refgenomes.split(" "):
+        REF_Genome_ext_ls.append(refgenome)
+        SAMPLE_ext_ls.append(sampleID)
+
+
+# grab current working directory for qc rules to use
+current_directory = os.getcwd()
+
+
+''' SNAKEMAKE '''
+rule all:
+  input:
+    # # Only data links # #
+    #expand("data/{sampleID}/R1.fq.gz",sampleID=SAMPLE_ls), ## Just need short sample ls 
+    #expand("data/{sampleID}/R2.fq.gz",sampleID=SAMPLE_ls), ## Just need short sample ls
+    # # Through all steps # #
+    expand("/nexus/posix0/MPIIB-keylab/reference_genomes/{reference}/genome_bowtie2.1.bt2",reference=set(REF_Genome_ext_ls)), ## Need all unique Ref genomes 
+    expand("3-bowtie2/{sampleID}_ref_{reference}_aligned.sorted.dedup.bam",zip,sampleID=SAMPLE_ext_ls, reference=REF_Genome_ext_ls),
+    expand("5-quals/{sampleID}_ref_{reference}_aligned.sorted.dedup.strain.variant.quals.npz", zip, sampleID=SAMPLE_ext_ls, reference=REF_Genome_ext_ls),
+    #expand("6-diversity/{sampleID}_ref_{reference}_aligned.sorted.dedup.strain.variant.diversity.mat", zip, sampleID=SAMPLE_ls, reference=REF_Genome_ls),
+    # Include bowtie and picard qc plots 
+    "3-bowtie2/mapping_stats/alignment_stat.csv",
+    "3-bowtie2/dedup_stats/deduplication_stat.csv",
+    # Include samples_case.csv to be produced
+    "../case/samples_case.csv",
+    # # Including cleanup # #
+    "logs/cleanUp_done.txt",
+
+rule bowtie2_index:
+  input:
+    fasta="/nexus/posix0/MPIIB-keylab/reference_genomes/{reference}/genome.fasta"
+  params:
+    "/nexus/posix0/MPIIB-keylab/reference_genomes/{reference}/genome_bowtie2",
+  output:
+    bowtie2idx="/nexus/posix0/MPIIB-keylab/reference_genomes/{reference}/genome_bowtie2.1.bt2"
+  group:
+    "genome_index",
+  conda:
+    "envs/bowtie2.yaml"
+  shell:
+    "bowtie2-build -q {input.fasta} {params} "
+
+rule refGenome_index:
+  input:
+    fasta="/nexus/posix0/MPIIB-keylab/reference_genomes/{reference}/genome.fasta"
+  output:
+    fastaidx="/nexus/posix0/MPIIB-keylab/reference_genomes/{reference}/genome.fasta.fai"
+  group:
+    "genome_index",
+  conda:
+    "envs/bowtie2.yaml"
+  shell:
+    "samtools faidx {input.fasta}"
+
+rule make_data_links:
+  # NOTE: All raw data needs to be names fastq.gz. No fq! The links will be names fq though.
+  input:
+    sample_info_csv="data/{sampleID}/sample_info.csv",
+  output:
+    # Recommend using symbolic links to your likely many different input files
+    fq1="data/{sampleID}/R1.fq.gz",
+    fq2="data/{sampleID}/R2.fq.gz",
+  group:
+    'trim_and_map',
+  run:
+    # get stuff out of mini csv file
+    with open(input.sample_info_csv,'r') as f:
+      this_sample_info = f.readline() # only one line to read
+    this_sample_info = this_sample_info.strip('\n').split(',')
+    path = this_sample_info[0] # remember python indexing starts at 0
+    paths = path.split(' ')
+    sample = this_sample_info[1]
+    provider = this_sample_info[3]
+    print(path + '\n' + sample + '\n' + provider)
+    # make links
+    if len(paths)>1:
+      providers = provider.split(' ')
+      cp_append_files(paths, sample, providers)
+    else:
+      makelink(path, sample, provider)
+
+rule cutadapt:
+  input:
+    # Recommend using symbolic links to your likely many different input files
+    fq1 = rules.make_data_links.output.fq1,
+    fq2 = rules.make_data_links.output.fq2,
+  output:
+    fq1o="0-tmp/{sampleID}_R1_trim.fq.gz",
+    fq2o="0-tmp/{sampleID}_R2_trim.fq.gz",
+  group:
+    'trim_and_map',
+  log:
+    log="logs/cutadapt_{sampleID}.txt",
+  conda:
+    "envs/cutadapt.yaml"
+  shell:
+    # 4 threads coded into json
+    "cutadapt --cores=4 -a CTGTCTCTTAT -o {output.fq1o} {input.fq1} 1> {log};"
+    "cutadapt --cores=4 -a CTGTCTCTTAT -o {output.fq2o} {input.fq2} 1>> {log};"
+
+rule sickle2050:
+  input:
+    fq1o = rules.cutadapt.output.fq1o,
+    fq2o = rules.cutadapt.output.fq2o,
+  output:
+    fq1o="1-data_processed/{sampleID}/filt1.fq.gz",
+    fq2o="1-data_processed/{sampleID}/filt2.fq.gz",
+    fqSo="1-data_processed/{sampleID}/filt_sgls.fq.gz",
+  group:
+    'trim_and_map',
+  log:
+    log="logs/sickle2050_{sampleID}.txt",
+  conda:
+    "envs/sickle-trim.yaml"
+  shell:
+    "sickle pe -g -f {input.fq1o} -r {input.fq2o} -t sanger -o {output.fq1o} -p {output.fq2o} -s {output.fqSo} -q 20 -l 50 -x -n 1> {log}"
+
+rule bowtie2:
+  input:
+    fq1="1-data_processed/{sampleID}/filt1.fq.gz",
+    fq2="1-data_processed/{sampleID}/filt2.fq.gz",
+    bowtie2idx="/nexus/posix0/MPIIB-keylab/reference_genomes/{reference}/genome_bowtie2.1.bt2" # put here, so rule botie2 only executed after rule refGenome_index done
+  params:
+    refGenome="/nexus/posix0/MPIIB-keylab/reference_genomes/{reference}/genome_bowtie2",
+  output:
+    bam="3-bowtie2/{sampleID}_ref_{reference}_aligned.sorted.bam",
+    bowtie_stat="3-bowtie2/mapping_stats/{sampleID}_ref_{reference}_aligned.sorted.bowtie_stats.txt"
+  group:
+    'trim_and_map', 
+  conda:
+    "envs/bowtie2.yaml"
+  shell:
+    # 4 threads coded into json; output aligned reads in sorted bam format; unaligned discarded
+    "bowtie2 --threads 4 -X 2000 --no-mixed --dovetail -x {params.refGenome} -1 {input.fq1} -2 {input.fq2} 2> {output.bowtie_stat} | samtools view -bSF4 - | samtools sort - -o {output.bam} "
+
+rule picard_rmdup:
+  input:
+    bam=rules.bowtie2.output.bam,
+  output:
+    dedup_bam="3-bowtie2/{sampleID}_ref_{reference}_aligned.sorted.dedup.bam",
+    dedup_metrics="3-bowtie2/dedup_stats/{sampleID}_ref_{reference}_aligned.sorted.dedup.pic_metrics.txt"
+  group:
+    'trim_and_map',
+  conda:
+    "envs/picard.yaml"
+  shell:
+    "picard MarkDuplicates INPUT={input.bam} OUTPUT={output.dedup_bam} METRICS_FILE={output.dedup_metrics} REMOVE_DUPLICATES=TRUE ASO=coordinate VALIDATION_STRINGENCY=SILENT " 
+
+rule bamidx:
+  input:
+    bam=rules.picard_rmdup.output.dedup_bam,
+  output:
+    bai="3-bowtie2/{sampleID}_ref_{reference}_aligned.sorted_dedup.bam.bai",
+  group:
+    'trim_and_map', 
+  conda:
+    "envs/samtools15_bcftools12.yaml"
+  shell:
+    " samtools index {input.bam} ;"
+
+rule map_dedup_qc:
+  input:
+    # needed to wait for all files to be generated
+    bowtie_stats=expand("3-bowtie2/mapping_stats/{sampleID}_ref_{reference}_aligned.sorted.bowtie_stats.txt",zip,sampleID=SAMPLE_ext_ls, reference=REF_Genome_ext_ls),
+    picard_stats=expand("3-bowtie2/dedup_stats/{sampleID}_ref_{reference}_aligned.sorted.dedup.pic_metrics.txt",zip,sampleID=SAMPLE_ext_ls, reference=REF_Genome_ext_ls),
+  output:
+    bowtie_comb_stat="3-bowtie2/mapping_stats/alignment_stat.csv",
+    picard_comb_stat="3-bowtie2/dedup_stats/deduplication_stat.csv",
+  conda:
+    "envs/bowtie_picard_qc.yaml"
+  script:
+    "scripts/bowtie_picard_qc_script.py"
+
+rule mpileup2vcf:
+  input:
+    bam=rules.picard_rmdup.output.dedup_bam,
+    ref="/nexus/posix0/MPIIB-keylab/reference_genomes/{reference}/genome.fasta",
+    refidx="/nexus/posix0/MPIIB-keylab/reference_genomes/{reference}/genome.fasta.fai"
+  output:
+    pileup="4-vcf/{sampleID}_ref_{reference}_aligned.sorted.dedup.pileup",
+    variants="4-vcf/{sampleID}_ref_{reference}_aligned.sorted.dedup.strain.variant.vcf.gz",
+    vcf_strain="4-vcf/{sampleID}_ref_{reference}_aligned.sorted.dedup.strain.vcf.gz",
+  group:
+    'pileup_and_filter', 
+  params:
+    vcf_raw="4-vcf/{sampleID}_ref_{reference}_aligned.sorted.dedup.strain.gz",
+    bai="3-bowtie2/{sampleID}_ref_{reference}_aligned.sorted.dedup.bam.bai",
+  conda:
+    "envs/samtools15_bcftools12.yaml"
+  shell:
+    " samtools mpileup -q30 -x -s -O -d3000 -f {input.ref} {input.bam} > {output.pileup} ;"
+    " samtools mpileup -q30 -t SP -d3000 -vf {input.ref} {input.bam} > {params.vcf_raw} ;"
+    " bcftools call -c -Oz -o {output.vcf_strain} {params.vcf_raw} ;"
+    " bcftools view -Oz -v snps -q .75 {output.vcf_strain} > {output.variants} ;"
+    " tabix -p vcf {output.variants} ;"
+    " rm {params.vcf_raw}"
+
+# strain.vcf ==> vcf_to_quals.m ==>.quals.npz
+rule vcf2quals:
+  input:
+    vcf_strain = rules.mpileup2vcf.output.vcf_strain,
+  params:
+    refGenomeDir="/nexus/posix0/MPIIB-keylab/reference_genomes/{reference}/"
+  output:
+    file_quals = "5-quals/{sampleID}_ref_{reference}_aligned.sorted.dedup.strain.variant.quals.npz",
+  group:
+    'pileup_and_filter',
+  run:
+    vcf_to_quals_snakemake(sample_path_to_vcf = input.vcf_strain, sample_path_to_quals = output.file_quals, REF_GENOME_DIRECTORY = params.refGenomeDir)
+
+# strain.pileup ==> pileup_to_diversity.m ==> diversity.mat
+rule pileup2diversity_matrix:
+  input:
+    pileup = rules.mpileup2vcf.output.pileup,
+  params:
+    refGenomeDir="/nexus/posix0/MPIIB-keylab/reference_genomes/{reference}/",
+  output:
+    file_diversity = "6-diversity/{sampleID}_ref_{reference}_aligned.sorted.dedup.strain.variant.diversity.npz",
+    file_coverage = "6-diversity/{sampleID}_ref_{reference}_aligned.sorted.dedup.strain.variant.coverage.npz",
+  group:
+    'pileup_and_filter',
+  run:
+    pileup_to_div_matrix_snakemake(sample_path_to_pileup = input.pileup, sample_path_to_diversity =  output.file_diversity, sample_path_to_coverage = output.file_coverage, ref_genome_directory = params.refGenomeDir)
+
+
+rule cleanUp:
+  input:
+    part1 = expand("5-quals/{sampleID}_ref_{reference}_aligned.sorted.dedup.strain.variant.quals.npz", zip, sampleID=SAMPLE_ext_ls, reference=REF_Genome_ext_ls),  # input not used, only required so snakemake waits with clean up until the end
+    part2 = expand("6-diversity/{sampleID}_ref_{reference}_aligned.sorted.dedup.strain.variant.diversity.npz", zip, sampleID=SAMPLE_ext_ls, reference=REF_Genome_ext_ls),  # input not used, only required so snakemake waits with clean up until the end
+  params:
+    cutad="1-cutadapt_temp/",
+    sickle="2-sickle2050_temp/",
+    bam="3-bowtie2/*sorted.bam", ## remove bam files which are not deduplicated
+    pileup="4-vcf/*_aligned.sorted.dedup.pileup", ## remove pileups 
+  output:
+    "logs/cleanUp_done.txt",
+  shell:
+    " rm -fr {params.cutad} {params.sickle} {params.bam} {params.pileup} ;"
+    " touch {output} ;"
+
+rule generate_next_samplescsv:
+  input: 
+    csv = "samples.csv",
+  output:
+    case_csv = "../case/samples_case.csv",
+  shell: 
+    """ awk 'BEGIN{{FS=OFS=","}} NR==1 {{print $1,$2,$3,$6}}' {input.csv} > {output.case_csv} ;"""
+    " dir=$(pwd) ;"
+    """ awk -v dir="$dir" 'BEGIN{{FS=OFS=","}} NR>1 {{print dir,$2,$3,$6}}' {input.csv} >> {output.case_csv} ;"""

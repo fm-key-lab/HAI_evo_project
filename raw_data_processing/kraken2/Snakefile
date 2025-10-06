@@ -1,0 +1,379 @@
+#############################################
+#SNAKEFILE FOR QC using Kraken2 (and Bracken#)
+#############################################
+
+## Version History 
+# # 2022.03 Martin merged rule headFQ2FA and fq2gz
+
+''' VARIABLES '''
+#USER defined variables (in theory do not need to be touched)
+spls = "samples.csv"
+
+import sys
+SCRIPTS_DIRECTORY = "./scripts"
+sys.path.insert(0, SCRIPTS_DIRECTORY)
+
+from kraken2_modules import *
+
+
+''' HELPER FUNCTIONS FOR CHECKPOINTS '''
+def sumstats(wildcards):
+    print(wildcards)
+    ## identifies samples for which one can run SRST2 (MLST scheme is present for top hit in bracken)
+    sumbracken = pd.read_csv(checkpoints.summarizeBrackRes.get(**wildcards).output.bracken_sum, names=['rate', 'num_reads', 'species', 'sampleid'], sep = ' ')
+    sumbracken = sumbracken.sort_values('rate', ascending=False).groupby('sampleid').head(1) ## get first entry with highest alignment rate for sample
+    mlst_db_species = get_ST_species()
+    st_species_df = pd.DataFrame()
+
+    for mlst_species, bracken_species in mlst_db_species.items():
+        sumbracken_subset = sumbracken[sumbracken['species'] == bracken_species]
+        sumbracken_subset['mlst_species'] = mlst_species
+        st_species_df = pd.concat([st_species_df, sumbracken_subset])
+    outfiles = list('5-srst2/' + st_species_df['sampleid'] + '_spec_' + st_species_df['species'] + '__mlst__' + st_species_df['mlst_species'] + '__results.txt')
+    return outfiles
+
+
+
+''' PRE-SNAKEMAKE '''
+# define couple of lists from samples.csv
+# Format: Path,Sample,ReferenceGenome,ProviderName,Subject
+[PATH_ls, SAMPLE_ls, REF_Genome_ls, PROVIDER_ls, CLADEID_ls] = read_samplesCSV(spls)
+# Write sample_info.csv for each sample
+split_samplesCSV(PATH_ls,SAMPLE_ls,REF_Genome_ls,PROVIDER_ls,CLADEID_ls)
+
+CLADES_ls = set(CLADEID_ls)
+
+# get unique reference genome list without cmpty strings (i.e. for control samples)
+REF_Genome_ls_uniq = set(filter(None, REF_Genome_ls))
+
+# set(list_patient) provides only unique clade IDs
+
+
+''' SNAKEMAKE '''
+rule all:
+  input:
+    # Include Bracken
+    expand("4-bracken/{sampleID}.bracken",sampleID=SAMPLE_ls),
+    # Include taxrank parsing:
+    expand("/nexus/posix0/MPIIB-keylab/reference_genomes/{reference}/taxonomic_rank.txt",reference=REF_Genome_ls_uniq),
+    ## Include single isolate assemblies with annotation
+    expand("6-isolate_assemblies/pilon/{sampleID}/scaffolds_pilon.fasta",sampleID=SAMPLE_ls),
+    "8-assemblystats/all_subjects_sumStats_assembly_annotation.tsv",
+    # Including cleanup # #
+    "logs/DONE_cleanUp"
+
+
+
+#PART 0: prepare filtered, clean FASTQ samples
+
+rule taxonomic_ranks:
+  input:
+    ncbi_taxranks="/nexus/posix0/MPIIB-keylab/databases/ncbi_taxranks/rankedlineage.dmp.gz",
+  params:
+    refGenomesDir="/nexus/posix0/MPIIB-keylab/reference_genomes/", ## Note that we just need the parent path for the script which then looks which files are missing!
+  output:
+    taxonomic_rank="/nexus/posix0/MPIIB-keylab/reference_genomes/{reference}/taxonomic_rank.txt",
+  group:
+    "tax_rank_group",
+  run:
+    taxrank_parser({params.refGenomesDir}, {input.ncbi_taxranks}, {wildcards.reference})
+
+rule make_data_links:
+  # NOTE: All raw data needs to be names fastq.gz. No fq! The links will be names fq though.
+  input:
+    sample_info_csv="data/{sampleID}/sample_info.csv",
+  output:
+    # Recommend using symbolic links to your likely many different input files
+    fq1="data/{sampleID}/R1.fq.gz",
+    fq2="data/{sampleID}/R2.fq.gz",
+  group:
+    "trim_and_fq2fa",
+  run:
+    # get stuff out of mini csv file
+    with open(input.sample_info_csv,'r') as f:
+      this_sample_info = f.readline() # only one line to read
+    this_sample_info = this_sample_info.strip('\n').split(',')
+    path = this_sample_info[0] # remember python indexing starts at 0
+    paths = path.split(' ')
+    sample = this_sample_info[1]
+    provider = this_sample_info[3]
+    # make links
+    if len(paths)>1:
+      providers = provider.split(' ')
+      cp_append_files(paths, sample, providers)
+    else:
+      makelink(path, sample, provider)
+
+rule cutadapt:
+  input:
+    # Recommend using symbolic links to your likely many different input files
+    fq1 = rules.make_data_links.output.fq1,
+    fq2 = rules.make_data_links.output.fq2,
+  output:
+    fq1o="0-tmp/{sampleID}_R1_trim.fq.gz",
+    fq2o="0-tmp/{sampleID}_R2_trim.fq.gz",
+  group:
+    "trim_and_fq2fa",
+  conda:
+    "envs/cutadapt.yaml"
+  shell:
+    "cutadapt -a CTGTCTCTTAT -o {output.fq1o} {input.fq1} ;"
+    "cutadapt -a CTGTCTCTTAT -o {output.fq2o} {input.fq2} ;"
+
+rule sickle2050:
+  input:
+    fq1o = rules.cutadapt.output.fq1o,
+    fq2o = rules.cutadapt.output.fq2o,
+  output:
+    fq1o="1-data_processed/{sampleID}/filt1.fq.gz",
+    fq2o="1-data_processed/{sampleID}/filt2.fq.gz",
+    fqSo="1-data_processed/{sampleID}/filt_sgls.fq.gz",
+  group:
+    "trim_and_fq2fa",
+  conda:
+    "envs/sickle-trim.yaml"
+  shell:
+    "sickle pe -g -f {input.fq1o} -r {input.fq2o} -t sanger -o {output.fq1o} -p {output.fq2o} -s {output.fqSo} -q 20 -l 50 -x -n"
+
+rule headFQ2FA:
+	# spades uses fwd and rev reads
+  input:
+    fq1 = rules.sickle2050.output.fq1o,
+    fq2 = rules.sickle2050.output.fq2o,
+  output:
+    fa1o="1-data_processed/{sampleID}_1.fa",
+    fq1o="0-tmp/{sampleID}_1.fq.gz", # fq output later necessary for spades
+    fq2o="0-tmp/{sampleID}_2.fq.gz",
+  params:
+    num_reads = 250000, ## number of reads which will be extracted from fastq files and used as input for kraken2 + SPAdes (in assembly snakemake)
+  group:
+    "trim_and_fq2fa",
+  shell:
+        # set +o pipefail; necessary to prevent pipefail (zcat runs but head is done)
+    "set +o pipefail ;"
+    " zcat {input.fq1} | head -n $(( {params.num_reads}*4 )) | tee >( gzip -c > {output.fq1o} ) | scripts/fq2fa_sed_script.sh /dev/stdin > {output.fa1o} ;"
+    " zcat {input.fq2} | head -n $(( {params.num_reads}*4 )) | gzip -c > {output.fq2o}  " # only R1 fasta file required for kraken2
+
+rule kraken2:
+  #quality assessment based only on fwd 
+  input:
+    fa1o = rules.headFQ2FA.output.fa1o,
+  output:
+    report="2-kraken2/{sampleID}_krakenRep.txt",
+    seq_results="0-tmp/{sampleID}_krakSeq.txt.gz",
+  params:
+    krakenbracken_db="/nexus/posix0/MPIIB-keylab/databases/kraken2_1_2",
+  group:
+    "kraken_bracken",
+  conda:
+    "envs/kraken2_bracken.yaml",
+  shell:
+    "kraken2 --threads 4 "
+    "--db {params.krakenbracken_db} {input.fa1o} "
+    "--report {output.report} | gzip > {output.seq_results} "
+
+rule bracken:
+  # bracken instead of kraken2 output should be used in future (but currently not implemented)
+  input:
+    report = rules.kraken2.output.report,
+  output:
+    bracken_rep="4-bracken/{sampleID}.bracken",
+    bracken_sum="2-kraken2/{sampleID}_krakenRep_bracken.txt",
+  params:
+    krakenbracken_db="/nexus/posix0/MPIIB-keylab/databases/kraken2_1_2",
+  group:
+    "kraken_bracken",  
+  conda:
+    "envs/kraken2_bracken.yaml",
+  shell:
+    "bracken -d {params.krakenbracken_db} -r 100 -i {input.report} -o {output.bracken_rep} "
+
+rule spades_isolates:
+  input:
+    fq1i="1-data_processed/{sampleID}/filt1.fq.gz",
+    fq2i="1-data_processed/{sampleID}/filt2.fq.gz",
+  params:
+    outdir="6-isolate_assemblies/spades/{sampleID}/",
+    kmer_size="21,33,55,75,95", ## kmer sizes used for assembly --> NOTE: must be smaller than read length
+    mem="64", ## memory in GB
+  output:
+    outfile="6-isolate_assemblies/spades/{sampleID}/scaffolds.fasta",
+  threads: 1,
+  conda:
+    "envs/spades315.yaml",
+  group:
+    "assemble_annotate",
+  shell:
+    " spades.py -m {params.mem} -t {threads} --careful -k {params.kmer_size} -1 {input.fq1i} -2 {input.fq2i} -o {params.outdir} "
+
+
+
+rule bowtie2:
+  input:
+    fasta="6-isolate_assemblies/spades/{sampleID}/scaffolds.fasta",
+    fq1="1-data_processed/{sampleID}/filt1.fq.gz",
+    fq2="1-data_processed/{sampleID}/filt2.fq.gz",
+  params:
+    refGenome="6-isolate_assemblies/spades/{sampleID}/scaffolds_bowtie2",
+    threads="1",
+  output:
+    bam="6-isolate_assemblies/bowtie2/{sampleID}/{sampleID}_ref_{sampleID}_aligned.sorted.bam",
+    bowtie_stat="6-isolate_assemblies/bowtie2/bowtie2_stats/{sampleID}_ref_{sampleID}_aligned.sorted.bowtie_stats.txt",
+    bam_idx="6-isolate_assemblies/bowtie2/{sampleID}/{sampleID}_ref_{sampleID}_aligned.sorted.bam.bai",
+  group:
+    'assemble_annotate',
+  conda:
+    "envs/bowtie2.yaml"
+  shell:
+    # 4 threads coded into json; output aligned reads in sorted bam format; unaligned discarded
+    " bowtie2-build -q {input.fasta} {params.refGenome} ;"
+    " bowtie2 --threads {params.threads} -X 2000 --no-mixed --dovetail -x {params.refGenome} -1 {input.fq1} -2 {input.fq2} 2> {output.bowtie_stat} | samtools view -bSF4 - | samtools sort - -o {output.bam} ;"
+    " samtools index {output.bam} "
+
+rule pilon:
+  input:
+    fasta="6-isolate_assemblies/spades/{sampleID}/scaffolds.fasta",
+    bam="6-isolate_assemblies/bowtie2/{sampleID}/{sampleID}_ref_{sampleID}_aligned.sorted.bam",
+    fq2="1-data_processed/{sampleID}/filt2.fq.gz",
+  params:
+    output_str="scaffolds_pilon",
+    outdir="6-isolate_assemblies/pilon/{sampleID}/",
+  output:
+    outfile="6-isolate_assemblies/pilon/{sampleID}/scaffolds_pilon.fasta",
+  group:
+    'assemble_annotate',
+  conda:
+    "envs/pilon.yaml"
+  shell:
+    " pilon --genome {input.fasta} --bam {input.bam} --output {params.output_str} --outdir {params.outdir} --changes"
+
+
+
+rule clean_assembly:
+  input:
+    assembly_fa="6-isolate_assemblies/spades/{sampleID}/scaffolds.fasta",
+  params:
+    outdir="6-isolate_assemblies/cleaned_assamblies/{sampleID}/",
+    blast_db="/ptmp/mfenk/tools/databases/ncbi_nt/nt.fsa",
+    min_contig_len=500,
+    min_perc_cov=0.1,
+    blast_len=1000,
+  threads: 1, ## NOTE: Need to increase to 16 again (also in cluster_slurm.json if blasting is implemented properly!)
+  output:
+    cleaned_fa="6-isolate_assemblies/cleaned_assamblies/{sampleID}/scaffolds_cleaned.fasta", ## not used in arguments, but needed to keep snakemake waiting
+    # Uncomment if you want to blast the contigs for pidentity differences to next non expected species --> not fully implemented yet!! 
+    # pident_plt="6-isolate_assemblies/cleaned_assamblies/{sampleID}/blast/pdfs/blast_results_pIdentDiff.pdf",
+  group: # NOTE: The rule should be run independently if blasting is implemented properly!! Before that the step is rather quick and should be grouped!
+    "assemble_annotate",
+  conda:
+    "envs/clean_assembly.yaml",
+  shell:
+    " python3 scripts/clean_blast_denovo_assemblies_script.py -i {input.assembly_fa} -o {params.outdir} -db {params.blast_db} -cl {params.min_contig_len} -cc {params.min_perc_cov} -l {params.blast_len} -t {threads} "
+
+rule bakta:
+  input:
+    infile="6-isolate_assemblies/cleaned_assamblies/{sampleID}/scaffolds_cleaned.fasta",
+  params:
+    outdir="7-annotation/{sampleID}/",
+    db="/nexus/posix0/MPIIB-keylab/databases/bakta_v1_6_1_DB_v4",
+  threads: 1, 
+  output:
+    "7-annotation/{sampleID}/bakta_out.txt",
+  conda:
+    "envs/bakta.yaml"
+  group:
+    "assemble_annotate",
+  shell:
+    " bakta --db {params.db} --threads {threads} --min-contig-length 500 --output {params.outdir} --prefix bakta_out {input.infile} ; "
+
+rule sumstats_bakta:
+  input:
+    fastq="1-data_processed/{sampleID}/filt1.fq.gz",
+    contig="6-isolate_assemblies/cleaned_assamblies/{sampleID}/scaffolds_cleaned.fasta",
+    assembly="7-annotation/{sampleID}/bakta_out.txt",
+  params:
+    samples="{sampleID}",
+  output:
+    "8-assemblystats/{sampleID}/sumStats_assembly_annotation.tsv",
+  conda:
+    "envs/bakta_sum.yaml",
+  group:
+    "batchgroup", #"assemble_annotate",
+  shell:
+    "python3 scripts/getSumStats_SPAdes_bakta_v1_script.py -s {params.samples} -f {input.fastq} -c {input.contig} -a {input.assembly} -o {output} "
+  
+rule merge_sumstats_bakta:
+  input:
+    sorted(expand("8-assemblystats/{sampleID}/sumStats_assembly_annotation.tsv",sampleID=SAMPLE_ls)),
+  output:
+    "8-assemblystats/all_subjects_sumStats_assembly_annotation.tsv",
+  group:
+    "sum_and_clean",
+  shell:
+    "cat {input} |sed -n '3~2!p' > {output}"
+
+checkpoint summarizeBrackRes:
+  input:
+    expand("2-kraken2/{sampleID}_krakenRep_bracken.txt",sampleID=SAMPLE_ls),
+    expand("/nexus/posix0/MPIIB-keylab/reference_genomes/{reference}/taxonomic_rank.txt",reference=REF_Genome_ls_uniq),
+  params:
+    spec_cutoff=80,
+    refGenomesDir="/nexus/posix0/MPIIB-keylab/reference_genomes/", ## Note that we just need the parent path for the R script, not the species specific subpaths! 
+  output:
+    sub_pass="3-samplesFiltPerSubject/SubjectsPassBracken.txt",
+    bracken_sum="4-bracken/sumBrackTest_species.txt",
+  group:
+    "sum_and_clean",
+  conda:
+    "envs/sum_bracken.yaml",
+  shell:
+    # rscript generates for each subject defined in samples.csv a file containing the libs that fullfil bracken filter criteria (>=80% assigned to species-of-interest-node)
+    # If subject has 0 samples that pass the filter --> no file written
+    # pdf folder made with summary plots
+    " bash scripts/get_bracken_taxLevels_results_script.sh {input} ; "
+    " python scripts/filter_plot_brackenRes_script.py -c {params.spec_cutoff} -g {params.refGenomesDir}; "
+
+rule download_mlst_db:
+  params:
+    mlst_species="{mlst_species}",
+    mlst_db_out="5-srst2/mlst_db/",
+  output:
+    mlst_db="5-srst2/mlst_db/{mlst_species}/{mlst_species}.fasta",
+  conda:
+    "envs/srst2.yaml",
+  shell:
+    ## Adapted getmlst.py script from SRST2 tool to allow for species with underscores and entry of outpath
+    " python scripts/getmlst_snakemake_script.py --species {params.mlst_species} --output_path {params.mlst_db_out}"
+
+rule srst2:
+  input:
+    fq1i="1-data_processed/{sampleID_srst2}/filt1.fq.gz",
+    fq2i="1-data_processed/{sampleID_srst2}/filt2.fq.gz",
+    mlst_db="5-srst2/mlst_db/{mlst_species}/{mlst_species}.fasta",
+  params:
+    mlst_profile="5-srst2/mlst_db/{mlst_species}/profiles_csv",
+    output_string="5-srst2/{sampleID_srst2}_spec_{bracken_species}", ## needed as parameter as the output string will be extended
+  output:
+    mlst_result="5-srst2/{sampleID_srst2}_spec_{bracken_species}__mlst__{mlst_species}__results.txt", ## needed for Snakefile to look for that file
+  conda:
+    "envs/srst2.yaml",
+  shell:
+    ## Note: Threads are hard coded to 4 in json file and command
+    " srst2 --input_pe {input.fq1i} {input.fq2i} --output {params.output_string} --log --mlst_db {input.mlst_db} --mlst_definitions {params.mlst_profile} --mlst_delimiter _ --forward 1 --reverse 2 --threads 4; "
+    ## Replace samplename in results from 'filt' to true sampleid
+    " SAMPLEID=$(echo {output.mlst_result} | sed -e 's|.*\/||' -e 's|_spec_.*||'); "
+    " gawk -i inplace -v SAMPLEID=$SAMPLEID 'FNR==2{{$1=SAMPLEID}};1' {output.mlst_result}; "
+
+rule cleanUp:
+  input:
+    "3-samplesFiltPerSubject/SubjectsPassBracken.txt",
+    sumstats,
+  params:
+    data_filt="1-data_processed/",
+  output:
+    "logs/DONE_cleanUp",
+  shell:
+    #" rm -rf {params.data_filt} ;"
+    # " echo input[1] " 
+    " touch {output} ;"
+

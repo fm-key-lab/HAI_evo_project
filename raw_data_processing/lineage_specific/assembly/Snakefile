@@ -1,0 +1,157 @@
+''' VARIABLES '''
+# USER defined variables (in theory do not need to be touched)
+spls = "samples.csv"
+SCRIPTS_DIRECTORY = "scripts/"
+assembly_type = 'lineage_based'
+
+
+''' PRE-SNAKEMAKE '''
+import sys
+sys.path.insert(0, SCRIPTS_DIRECTORY)
+
+from assembly_modules import *
+
+print(f'Running assembly {assembly_type}')
+
+## define couple of lists from samples.csv
+## Format: Path,Sample,ReferenceGenome,ProviderName,Subject
+[PATH_ls, SAMPLE_ls, REF_Genome_ls, PROVIDER_ls, PATIENTID_ls_all] = read_samplesCSV(spls)
+#PATIENTID_ls = set(PATIENTID_ls_all) # set(list_patient) provides only unique subject IDs
+if assembly_type == 'kraken_based':
+    Krak_Genome_ls_all = [s.split('_', 1)[0].replace('YT3', '') for s in REF_Genome_ls] # get expected genome from REF_Genome list and remove YT3 pattern at the end for hormaechei genomes --> This need to change to a better solution!
+    sample_denovo_assembly_file="../kraken2/3-samplesFiltPerSubject/subject{subjectID}_{genome}_samples.txt"
+elif assembly_type == 'lineage_based':
+    Krak_Genome_ls_all = [s.split('_', 1)[1] for s in REF_Genome_ls] # remove patient id from reference genome name
+    sample_denovo_assembly_file= "sample_lineage_files/{subjectID}_{genome}_denovo_assembly_smpls.txt" # file per assembly which contains samples which should be used for assembly --> i.e. separation of clades possible with that!
+[PATIENTID_ls, Krak_Genome_ls] = list(zip(*set(zip(PATIENTID_ls_all, Krak_Genome_ls_all)))) # get unique combinations of subject IDs and kraken genomes (set(zip())) and reverse to individual lists (list(zip(*)))
+
+''' SNAKEMAKE'''
+rule all:
+  input:
+    expand("6-assemblystats/subject_{subjectID}_{genome}/sumStats_assembly_annotation.tsv",zip,subjectID=PATIENTID_ls,genome=Krak_Genome_ls),
+    "6-assemblystats/all_subjects_sumStats_assembly_annotation.tsv",
+    "7-ortholog_identification/annotation_orthologs.tsv",
+    "logs/DONE_cleanUp",
+
+rule spades:
+  # py code reads in subject file w/ kraken-validated samples. Merges validated fq.gz (from fq2gz rule) and runs SPAdes (hardcoded for 72 threads)
+  input:
+    subject=sample_denovo_assembly_file,
+  threads: 72,
+  output:
+    fasta="3-spades/subject_{subjectID}_{genome}/scaffolds.fasta", # produced by spades
+    fastq="../kraken2/0-tmp/in1_spades_{subjectID}_{genome}.fq.gz", # produced by py script, and used by spades for assemebly
+  conda:
+    "envs/spades315.yaml",
+  shell:
+    # NOTE: 72 cores assigned in json are hard coded as parameter in rule!
+    # SPAdes output in: 3-spades/resultsSPAdes/subject_[subjectID]/
+    " python3 scripts/mergeFQ_runSPAdes_script.py -i {input.subject} -s {wildcards.subjectID} -g {wildcards.genome} -t {threads}"
+
+
+rule clean_assembly:
+  input:
+    assembly_fa="3-spades/subject_{subjectID}_{genome}/scaffolds.fasta",
+  params:
+    outdir="4-cleaned_assembly/subject_{subjectID}_{genome}/",
+    blast_db="/ptmp/mfenk/tools/databases/ncbi_nt/nt.fsa",
+    min_contig_len=500,
+    min_perc_cov=0.1,
+    blast_len=1000,
+  threads: 1, ## NOTE: Need to increase to 16 again (also in cluster_slurm.json if blasting is implemented properly!)
+  output:
+    cleaned_fa="4-cleaned_assembly/subject_{subjectID}_{genome}/scaffolds_cleaned.fasta", ## not used in arguments, but needed to keep snakemake waiting
+    # Uncomment if you want to blast the contigs for pidentity differences to next non expected species --> not fully implemented yet!! 
+    # pident_plt="4-cleaned_assembly/subject_{subjectID}_{genome}/blast/pdfs/blast_results_pIdentDiff.pdf",
+  group: # NOTE: The rule should be run independently if blasting is implemented properly!! Before that the step is rather quick and should be grouped!
+    "annotate",
+  conda:
+    "envs/clean_assembly.yaml",
+  shell:
+    " python3 scripts/clean_blast_denovo_assemblies_script.py -i {input.assembly_fa} -o {params.outdir} -db {params.blast_db} -cl {params.min_contig_len} -cc {params.min_perc_cov} -l {params.blast_len} -t {threads} "
+
+rule bakta:
+  input:
+    infile="4-cleaned_assembly/subject_{subjectID}_{genome}/scaffolds_cleaned.fasta",
+  params:
+    outdir="5-annotation/subject_{subjectID}_{genome}",
+    db="/nexus/posix0/MPIIB-keylab/databases/bakta_v1_6_1_DB_v4",
+  threads: 4
+  output:
+    "5-annotation/subject_{subjectID}_{genome}/bakta_out.txt",
+  conda:
+    "envs/bakta.yaml"
+  group:
+    "annotate",
+  shell:
+    " bakta --db {params.db} --threads {threads} --min-contig-length 500 --output {params.outdir} --prefix bakta_out {input.infile} ; "
+
+rule sumstats_bakta:
+  input:
+    samples=sample_denovo_assembly_file,
+    fastq="../kraken2/0-tmp/in1_spades_{subjectID}_{genome}.fq.gz",
+    contig="4-cleaned_assembly/subject_{subjectID}_{genome}/scaffolds_cleaned.fasta",
+    assembly="5-annotation/subject_{subjectID}_{genome}/bakta_out.txt",
+  output:
+    "6-assemblystats/subject_{subjectID}_{genome}/sumStats_assembly_annotation.tsv",
+  conda:
+    "envs/bakta_sum.yaml",
+  group:
+    "annotate",
+  shell:
+    "python3 scripts/getSumStats_SPAdes_bakta_v1_script.py -s {input.samples} -f {input.fastq} -c {input.contig} -a {input.assembly} -o {output} "
+
+rule merge_sumstats_bakta:
+  input:
+    expand("6-assemblystats/subject_{subjectID}_{genome}/sumStats_assembly_annotation.tsv",zip,subjectID=PATIENTID_ls,genome=Krak_Genome_ls),
+  output:
+    "6-assemblystats/all_subjects_sumStats_assembly_annotation.tsv",
+  group:
+    "bakta_sum_orth",
+  shell:
+    "cat {input} |sed -n '3~2!p' > {output}"
+
+rule build_input_orth_inf:
+  input:
+    "6-assemblystats/all_subjects_sumStats_assembly_annotation.tsv",
+  output:
+    output_file="7-ortholog_identification/all_subjects_faa.tsv",
+  log:
+    "logs/build_input_orth_inf.log",
+  group:
+    "bakta_sum_orth",
+  run:
+    with open( output.output_file,'w') as file:
+      for s,genome in zip(PATIENTID_ls, Krak_Genome_ls):
+        file.write('HAP2020_mf_'+s+'_'+genome+'\t'+'5-annotation/subject_'+s+'_'+genome+'/bakta_out.faa'+'\n')
+
+rule infer_orthologs:
+  input:
+    "7-ortholog_identification/all_subjects_faa.tsv",
+  params:
+    percent_identity="0.95",
+    output_folder="7-ortholog_identification/",
+  output:
+    "7-ortholog_identification/annotation_orthologs.tsv",
+  conda:
+    "envs/cd-hit.yaml",
+  group:
+    "bakta_sum_orth",
+  shell:
+    """
+    python3 scripts/annotation_orthologs_inference_script.py -f {input} -p {params.percent_identity} -o {params.output_folder}
+    """
+
+rule cleanUp:
+  input:
+    trigger_file1="6-assemblystats/all_subjects_sumStats_assembly_annotation.tsv",
+    trigger_file2="7-ortholog_identification/annotation_orthologs.tsv",
+  params:
+    tmp_folder="../kraken2/0-tmp/in*"
+  output:
+    "logs/DONE_cleanUp",
+  group:
+    "bakta_sum_orth",
+  shell:
+    " rm -r {params.tmp_folder} ; "
+    " touch {output} ; "
