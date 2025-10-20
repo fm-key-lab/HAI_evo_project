@@ -16,7 +16,7 @@ plt.rcParams['svg.fonttype'] = 'none'
 
 
 import sys
-SCRIPTS_DIRECTORY = os.path.expanduser('~/Nextcloud/keylab/projects/mf_2020_hap/labbook/data_analysis/2022/analysis_scripts/modules/')
+SCRIPTS_DIRECTORY = os.getcwd() + '/../../modules/'
 sys.path.insert(0, SCRIPTS_DIRECTORY)
 
 import analysispy_module as apy

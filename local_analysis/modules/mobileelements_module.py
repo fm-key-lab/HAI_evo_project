@@ -9,7 +9,7 @@ import sys
 import pandas as pd 
 import os
 
-SCRIPTS_DIRECTORY = "/Users/arolyn/Dropbox (MIT)/Postdoc/Lieberman Lab/scripts/python/modules"
+SCRIPTS_DIRECTORY = os.getcwd() + '/'
 sys.path.insert(0, SCRIPTS_DIRECTORY)
 
 import analysispy_module as apy

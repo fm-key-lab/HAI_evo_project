@@ -16,7 +16,7 @@ parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpForm
                                 description='''\
                             Generates QC stats for mapping with bowtie2 and deduplication with picard
                                ''',
-                               epilog="Questions or comments? --> fenk@mpiib-berlin.mpg.de")
+                               epilog="Questions or comments? --> UPDATE_YOUR_EMAIL_ADDRESS")
 parser.add_argument("-s", dest="snakemake", help="Script is called from snakemake, default: True", required=False, default=True)
 parser.add_argument("-p", dest="path", help="Current working directory or absolut path to subdirectories with log files. default: current working dir", required=False, default=os.getcwd())
 parser.add_argument("-m", dest="mapping_path", help="Relative path to log files from bowtie2 including its mapping rates", required=False)

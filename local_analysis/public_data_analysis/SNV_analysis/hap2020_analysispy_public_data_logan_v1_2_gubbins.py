@@ -43,7 +43,7 @@ os.chdir(dname)
 print(f'Starting the script from {os.getcwd()}')
 
 ## Directory to analysispy_module.py
-SCRIPTS_DIRECTORY = os.getcwd() + '/modules/'
+SCRIPTS_DIRECTORY = os.getcwd() + '/../../modules/'
 sys.path.insert(0, SCRIPTS_DIRECTORY)
 
 import analysispy_module as apy

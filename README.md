@@ -2,14 +2,141 @@
 
 MANUAL AND CODE BASE CURRENLTY UNDER CONSTRUCTION
 
-## Repository Contents
-
 Here we present the computational code part of the analysis presented in: 
 
-Martin Fenk, Alexandra Hrdina, James B. Winans, Meike Soerensen, Laura Ostertag, Elina Coquery, Fatoumata Sow, Sirak Petros, Catalina-Suzana Stingu, Norman Lippmann, Carey D. Nadell, Igor Iatsenko, Bastian Pasieka, Felix M. Key. Colonization, translocation, and evolution of opportunistic pathogens during hospital-associated infections. in preparation
+Fenk M., Hrdina A., Winans J. B., Soerensen M., Ostertag L., Coquery E., Sow F., Petros S., Stingu C., Lippmann N., Nadell C. D., Iatsenko I., Pasieka B., Key F. M. Colonization, translocation, and evolution of opportunistic pathogens during hospital-associated infections. 
 
 We hope you find the code useful. In case you recycle it for your own analyses please cite our study.
 
-## Introduction
+## Overview
 
+The analysis is grouped into 3 parts
 
+- Species-specific analyses
+    - Raw data processing (HPC)
+        - Taxonomic classification
+        - Mapping reads to a reference genome
+        - Identifying candidate SNVs
+    - SNV-based analysis
+        - Filtering of SNVs
+        - Pairwise SNV distance analysis
+- Lineage-specific analyses 
+    - Raw data processing (HPC)
+        - Taxonomic classification (required if species-specific analysis was not done)
+        - *De novo* assembly of lineage-specific genomes
+        - Mapping reads to the *de novo* assembled lineage-specific genome
+        - Identifying candidate SNVs and indels
+    - SNV- and indel-based analysis
+        - Filtering of SNVs and indels
+        - xx
+    - MGE-based analysis
+    - Phenotype analysis
+- Public data analyses
+    - Raw data processing (HPC)
+        - Taxonomic classification
+        - Mapping reads to the *de novo* assembled *E. hormaechei* genome
+        - Identifying candidate SNVs
+    - SNV-based analysis (≥ 64 GB RAM required)
+        - Filtering of SNVs
+        - dN/dS analysis
+
+## Prerequisites
+
+The analyses are built upon [`Snakemake`](https://snakemake.readthedocs.io/en/stable/) pipelines which are used to process raw sequencing reads on a computing cluster with a `slurm` workload manager. `Snakemake` can be installed using [`miniconda`](https://www.anaconda.com/docs/getting-started/miniconda/main) given the provided conda environment (`envs/snakemake_conda_env.yaml`). Subsequent analyses are mainly written using `Python` (version 3.12; see provided conda environment `envs/analysis_conda_env.yaml`) with some parts done in `R` (version 4.4.0; see required library versions `envs/R_library_versions.txt`). Prior to execution of any script, make sure the correct paths are provided and the input is in the correct format.
+
+The raw sequencing reads generated within this study are available on the ENA BioProject [PRJEB98220](https://www.ebi.ac.uk/ena/browser/view/PRJEB98220) and the Biosample IDs of utilized public data are available within `metadata/public_data/Pub_data_biosampleid_list.txt`. All sequencing data should be downloaded using e.g. `nf-core/fetchngs` or `fasterq-dump` prior to analysis.
+
+## Species-specific analyses
+
+The first part of the analysis processes raw sequencing reads on a computing cluster using `Snakemake` pipelines with published bioinformatic tools, classifies the taxonomy of every sample, aligns the quality-controlled reads against a reference genome, calls single-nucleotide variants (SNVs) and proccesses those with related summary metrics into a multi-dimensional matrix. The second part can be performed on a local machine. It filters samples and SNVs based on which the fine-grained evolutionary analysis can be performed.
+
+### Species-specific raw data processing
+
+Prerequisite: 
+- Download of sequencing reads [PRJEB98220](https://www.ebi.ac.uk/ena/browser/view/PRJEB98220)
+- Installation of the `Snakemake` conda environment (`envs/snakemake_conda_env.yaml`)
+- Access to a computing cluster with `slurm` workload manager
+
+Raw data processing is implemented to be conducted on a computing cluster (see **Prerequisites**) using multiple `Snakemake` pipelines. 
+
+1. `raw_data_processing/kraken2`: Taxonomic classification to estimate the abundance of reads of the focal species within each sample, sequence typing & *de novo* genome assemblies of each individual sample.
+    - prior to run the pipeline, a database for kraken and bracken need to be built
+    - to run the samples on the data, use `raw_data_processing/kraken2/HAI_samples.csv`
+2. `raw_data_processing/species_specific/mapping`: Alignment of quality-filtered reads against a reference genome
+3. `raw_data_processing/species_specific/case`: Generation of a multi-dimensional matrix (`candidate_mutation_table.pickle.gz`) for each reference genome containing candidate SNVs and respective summary metrics
+
+### Species-specific SNV-based analysis
+
+Prerequisite: 
+- Species-specific raw data processing (required output file: `candidate_mutation_table.pickle.gz`, `cov_raw_sparsecsr_mat.npz`)
+- Installation of the analysis conda environment (`envs/analysis_conda_env.yaml`)
+
+Following the raw data processing, the species-specific evolutionary analysis (`local_analysis/species_specific_analysis/SNV_analysis/hap2020_analysispy_refbased_v3.py`) utilizes the output from the raw data processing (`candidate_mutation_table.pickle.gz`) to generate pathogen-patient pair specific maximum likelihood phylogenies to identify lineage clusters.
+
+## Lineage-specific analyses 
+
+After identification of lineage clusters, quality-filtered sequencing reads are utilized on a computing cluster using `Snakemake` pipelines to assemble *de novo* lineage-specific genomes against which the reads are aligned and obtained single-nucleotide variants (SNVs) and indels are processed with related summary metrics into a multi-dimensional matrix, while coverage matrices are generated for mobile genetic element (MGE) identification. The subsequent analyses are designed to run on a local machine and filter samples and candidate SNVs and indels and identifies MGEs.
+
+### Lineage-specific raw data processing
+
+Prerequisite: 
+- Download of sequencing reads [PRJEB98220](https://www.ebi.ac.uk/ena/browser/view/PRJEB98220)
+- Installation of the `Snakemake` conda environment (`envs/snakemake_conda_env.yaml`)
+- Access to a computing cluster with `slurm` workload manager
+- Samples clustered to distinct lineages based on the identified lineage cutoff and the phylogenies from the species-specific analysis (`raw_data_processing/lineage_specific/assembly/sample_lineage_files`)
+
+Raw data processing is implemented to be conducted on a computing cluster (see **Prerequisites**) using multiple `Snakemake` pipelines. 
+
+0. `raw_data_processing/kraken2`: (required from **Species-specific analysis**)
+1. `raw_data_processing/lineage_specific/assembly`:
+    - based on the reconstructed phylogenies and the taxonomic classification from the species-specific analysis, high-quality samples of each lineage need to be provided (see `raw_data_processing/lineage_specific/assembly/sample_lineage_files`)
+2. `raw_data_processing/lineage_specific/mapping`: Alignment of quality-filtered reads against the respective *de novo* assembled lineage-specific genome
+3. `raw_data_processing/lineage_specific/case`: Generation of a multi-dimensional matrix for each *de novo* assembled lineage-specific genome containing candidate SNVs, indels and respective summary metrics for each variant and two coverage matrices
+
+### Lineage-specific SNV- and indel-based analysis
+
+Prerequisite: 
+- Lineage-specific raw data processing (required output files: `candidate_mutation_table.pickle.gz`, `cov_raw_sparsecsr_mat.npz`)
+- Installation of the analysis conda environment (`envs/analysis_conda_env.yaml`)
+
+The lineage-specific SNV and indel analysis (`local_analysis/lineage_specific_analysis/SNV_indel_analysis/hap2020_analysispy_denovo_v2.py`) utilizes the output from the raw data processing (`candidate_mutation_table.pickle.gz`) to perform evolutionary analyses (phylogenetic reconstruction, ancestral allele inference, and molecular clock and parallel evolution analysis).
+
+### Lineage-specific MGE-based analysis
+
+Prerequisite: 
+- Lineage-specific raw data processing (required output files: `cov_raw_sparsecsr_mat.npz`, `cov_norm_sparsecsr_mat.npz`)
+- Installation of the analysis conda environment (`envs/analysis_conda_env.yaml`)
+
+The MGE analysis (`local_analysis/lineage_specific_analysis/MGE_analysis/MGE_analysis_denovo_v1.2.py`) utilizes two coverage matrices generated at the end of the raw data processing (`cov_raw_sparsecsr_mat.npz`, `cov_norm_sparsecsr_mat.npz`) to identify gained/lost mobile genetic elements within each lineage.
+
+### Phenotype analysis
+
+Individual analysis of measured phenotype data (`local_analysis/lineage_specific_analysis/subsequent_analysis/phenotyping`).
+
+## Public data analyses
+
+Re-analysis of public data to gain insights about the frequency of the identified infection-associated mutation (*fimZ*[F126L]).
+
+### Public data raw data processing
+
+Prerequisite: 
+- Download of sequencing data `metadata/public_data/Pub_data_biosampleid_list.txt`
+- Installation of the `Snakemake` conda environment (`envs/snakemake_conda_env.yaml`)
+- Access to a computing cluster with `slurm` workload manager
+- Annotated *de novo* assembled lineage-specific *E. hormaechei* genome (`metadata/lineage_specific_assembled_genomes/P07_Ehormaechei-c1`)
+
+Raw data processing is implemented to be conducted on a computing cluster (see **Prerequisites**) using multiple `Snakemake` pipelines. 
+
+1. `raw_data_processing/kraken2`: Taxonomic classification to estimate the abundance of reads of the focal species within each sample, sequence typing & *de novo* genome assemblies of each individual sample.
+    - to run the samples on the data, use `raw_data_processing/kraken2/Pub_data_samples.csv`
+2. `raw_data_processing/species_specific/mapping`: Alignment of quality-filtered reads (≥ 80% reads are assigned as *E. hormaechei*) against the *de novo* assembled lineage-specific *E. hormaechei* genome (see **Lineage-specific analysis**)
+3. `raw_data_processing/species_specific/case`: Generation of a multi-dimensional matrix for each reference genome containing candidate SNVs and respective summary metrics
+
+### Public data SNV-based analysis
+
+Prerequisite: 
+- Public data raw data processing (required output files: `candidate_mutation_table.pickle.gz`)
+- Installation of the analysis conda environment (`envs/analysis_conda_env.yaml`)
+- ≥64 GB RAM
+
+The public data SNV analysis (`local_analysis/public_data_analysis/SNV_analysis/trigger_anapy_w_BSMLtree.sh`) utilizes the output from the raw data processing (`candidate_mutation_table.pickle.gz`) to perform filter isolates and candidate SNVs and generates the final phylogenetic tree.

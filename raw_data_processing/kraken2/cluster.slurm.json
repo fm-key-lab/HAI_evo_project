@@ -10,7 +10,7 @@
         "mem"            : 2000,
         "output"         : "logs/{rule}_%j.out_err.txt",
         "error"          : "logs/{rule}_%j.out_err.txt",
-        "mail-user"      : "fenk@mpiib-berlin.mpg.de",
+        "mail-user"      : "UPDATE_YOUR_EMAIL_ADDRESS",
         "mail-type"      : "FAIL"
     },
     "taxonomic_ranks" : {

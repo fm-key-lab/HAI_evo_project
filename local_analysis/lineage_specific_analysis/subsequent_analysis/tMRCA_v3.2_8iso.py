@@ -1,13 +1,4 @@
 
-## I have the underlying data of the mutations
-## I have the mutation rate with the cis
-## I can bootstrap the mutations at each locus with replacement (and one time just mean)
-## and can calculate the underlying confidence interval and compare results!
-
-## NOTE: This is an adaption of the version from 2023_09_26!
-## With this script confidence intervals in a positive range can be evaluated only!
-
-
 import os
 import glob
 import numpy as np
@@ -23,7 +14,7 @@ plt.rcParams['font.family'] = "Helvetica"
 plt.rcParams['pdf.fonttype'] = 42
 plt.rcParams['svg.fonttype'] = 'none'
 
-sys.path.insert(0, os.path.expanduser('~/Nextcloud/keylab/projects/mf_2020_hap/labbook/data_analysis/2022/analysis_scripts/modules/'))
+sys.path.insert(0, os.getcwd() + '/../../modules/')
 
 import analysispy_module as apy
 
@@ -314,29 +305,17 @@ mutation_rate_inf_df = pd.DataFrame()
 
 ## ncbi search: ((("Pseudomonas aeruginosa") OR (Pseudomonas)) AND (("mutation rate") OR ("molecular clock") OR ("substitution rate") AND (("/year") OR ("per year")) 
 
-mutationrates = {   'Apittii': [1.286e-6, [1.125e-6, 1.449e-6]],                                # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8875366/ # 5/genomeLength, # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5320584/, # https://www.researchsquare.com/article/rs-80066/v1, #https://www.microbiologyresearch.org/content/journal/mgen/10.1099/mgen.0.000050 
-                    'Bthetaiotaomicron': [0.9/genome_length_dict['Bthetaiotaomicron-c1']],      # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6749991/
-                    'Ecoli': [6.9e-7, [3.14e-7, 1.4e-6]],                                       # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5835743/ # https://link.springer.com/article/10.1007/s00239-019-09912-5#additional-information / # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6015860/
-                    'Ehormaechei': [2.7/genome_length_dict['Ehormaechei-c1'], [2.5/genome_length_dict['Ehormaechei-c1'], 3.0/genome_length_dict['Ehormaechei-c1']]], # https://journals.asm.org/doi/10.1128/mbio.00542-18 # 4.53/genomeLength, # https://journals.asm.org/doi/full/10.1128/aac.02091-17?casa_token=txr7x-GjJz0AAAAA%3A-BhhwwF1Xqkt2ASZg5FJcZ5_Sw8N4g7EbKkL8XWTuHzFKZefp-0ATYGMMERHTSZGEhOyti7XaDwbqg # 3*10E-08, # https://pubmed.ncbi.nlm.nih.gov/29566147/#:~:text=Results%3A%20Mutation%20rates%20were%20high,Providencia%20spp.%2C%20Serratia%20spp.
-                    'Kmichiganensis': [1.9e-6, [1.1e-6, 2.9e-6]],                               #[4.18e-7, [0.87e-7, 4.89e-7]] # https://academic.oup.com/gbe/article/9/3/574/2977333 ## [1.9e-6, [1.1e-6, 2.9e-6]], # https://journals.asm.org/doi/full/10.1128/aac.04292-14 : 1.9 × 10−6 substitutions/called site/year (95% credibility interval [95% CI], 1.1 × 10−6 to 2.9 × 10−6) # https://www.embopress.org/doi/full/10.15252/emmm.201404767#
-                    'Smaltophilia': [np.nan],
-                    'Mmorganii': [np.nan],
-                    'Pmirabilis': [np.nan],
-                    'Paeruginosa': [2.92/genome_length_dict['Paeruginosa-c1'], [2.22/genome_length_dict['Paeruginosa-c1'], 3.62/genome_length_dict['Paeruginosa-c1']]],                  # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4556809/ # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6015860/
-                    'Saureus': [2.72/genome_length_dict['Saureus-ST97-c3'], [1.64/genome_length_dict['Saureus-ST97-c3'], 4.42/genome_length_dict['Saureus-ST97-c3']]] #[1.22e-6, [6.04e-7, 1.86e-6]]                                   # https://www.pnas.org/doi/epdf/10.1073/pnas.1401006111 ## https://www.science.org/doi/full/10.1126/science.1182395?casa_token=e2Ki2OmURhwAAAAA%3A8boxk8Ng3kLy5KBXyrk0jipPU6tXmRGOu-vkVec6HkMjs2pexzNdhrCpW5h8Qz7fDgS3oxIoihWGFw # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4752609/ # https://academic.oup.com/mbe/article/28/5/1593/1267325 # https://www.pnas.org/doi/epdf/10.1073/pnas.1113219109 / 2.05*10E-6: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6015860/
+mutationrates = {   'Apittii': [1.286e-6, [1.125e-6, 1.449e-6]],                                                  # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8875366/
+                    'Bthetaiotaomicron': [0.9/genome_length_dict['Bthetaiotaomicron-c1']],                        # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6749991/
+                    'Kmichiganensis': [1.9e-6, [1.1e-6, 2.9e-6]],                                                 # https://journals.asm.org/doi/full/10.1128/aac.04292-14
+                    'Saureus': [2.72/genome_length_dict['Saureus-ST97-c3'], [1.64/genome_length_dict['Saureus-ST97-c3'], 4.42/genome_length_dict['Saureus-ST97-c3']]]                                   # https://www.pnas.org/doi/epdf/10.1073/pnas.1113219109
                 }
 
 ## get a dict of the tp of infections in respect to hospital admission (note: only the clades with infectious isolates will be stated!)
 inf_day_dict = {'P0007_P07_Apittii-c1_240825': 50.89,
                 'P0007_P07_Bthetaiotaomicron-c1_240825': 50.831,
-                'P0007_P07_Ecoli-ST4260-c2_240825': np.nan,
-                'P0007_P07_Ecoli-ST58-c5_240825': np.nan, 
-                'P0007_P07_Ecoli-ST95-c3_240825': np.nan,
                 'P0007_P07_Ehormaechei-c1_240825': 38.688,
                 'P0010_P10_Kmichiganensis-c1_240825': 3.127,
-                'P0021_P21_Ecoli-ST23-c2_240825': 2.011,
-                'P0021_P21_Ecoli-STnfx-c1_240825': np.nan,
-                'P0021_P21_Pmirabilis-c2_240825': 2.011,
                 'P0021_P21_Saureus-ST97-c3_240825': 2.011}
 
 ## plot specific variables
@@ -353,7 +332,6 @@ species_clock = {'A. pittii': 'Genus-specific',
                  'E. hormaechei': 'Inferred', 
                  'K. michiganensis': 'Genus-specific', 
                  'E. coli': 'Species-specific', 
-                 'P. mirabilis': np.nan, 
                  'S. aureus': 'Species-specific'}
 
 ############################################################
@@ -410,14 +388,18 @@ for file in files:
     mut_rate_dict = {}
     species_clade = subj_spec.split('_')[2]
     species = species_clade.split('-')[0]
-    mut_rate_literature = mutationrates[species][0] * basescale
     try:
-        mut_rate_ci95_literature = [ci * basescale for ci in mutationrates[species][1]]
+        mut_rate_literature = mutationrates[species][0] * basescale
+        try:
+            mut_rate_ci95_literature = [ci * basescale for ci in mutationrates[species][1]]
+        except:
+            mut_rate_ci95_literature = [0, 0]
     except:
-        mut_rate_ci95_literature = [0, 0]
+        mut_rate_literature = np.nan
+    
 
-    if np.isnan(mut_rate_literature):
-        print('No mutation rate for literature found, using the mean of the identified mutation rates across isolates')
+    if np.isnan(mut_rate_literature) and np.isnan(mut_rate_obs):
+        print('No mutation rate found')
         continue
         
     ## check if there is any timepoint within ≤48 h (needed to account for rounding errors due to the use of integers (days!); cutoff need to be checked again manually for ≤24h!) which has more than the number of isolates required
@@ -448,7 +430,6 @@ tmrca_spec_inf = add_metadata_to_df(tmrca_spec_inf, inf_day_dict)
 ####################
 ## plot with all clades which have enough data 
 legend_info_tmrca = [Line2D([0], [0], marker = 'x', color = inf_color, linewidth = 0, markeredgewidth = 2, label = 'HAI\ndiagnosis', markersize = 8)]
-# legend_info_tmrca += [plt.Rectangle((0,0),1,1, facecolor = 'w', edgecolor = 'k', linewidth = 1, label = 'Inferred acquisition time\nof lineage in microbiome\n(mean & 95% CI)')]
 legend_info_tmrca += [plt.Rectangle((0,0),1,1, facecolor = tmrca_col, edgecolor = 'w', linewidth = 0, label = 'tMRCA of pathogenic\nlineage in microbiome\n(mean & 95% CI)')]
 
 legend_info_mol_clock = [Line2D([0], [0], linewidth = 0, label = 'Molecular clock\n(mean & 95% CI)')]
@@ -518,7 +499,6 @@ tmrca_spec_inf_clades_nohypmut_sub.loc[tmrca_spec_inf_clades_nohypmut_sub['ci_up
 
 tmrca_spec_inf_clades_nohypmut_sub['mrca_date_before_inf'] = tmrca_spec_inf_clades_nohypmut_sub['mrca_date_since_hosp'] - tmrca_spec_inf_clades_nohypmut_sub['inf_date']
 tmrca_spec_inf_clades_nohypmut_sub['ci_lower_mrca_date_before_inf'] = tmrca_spec_inf_clades_nohypmut_sub['ci_lower_mrca_date_since_hosp'] - tmrca_spec_inf_clades_nohypmut_sub['inf_date']
-#tmrca_spec_inf_clades_nohypmut_sub.loc[tmrca_spec_inf_clades_nohypmut_sub['ci_lower_mrca_date_before_inf'].isna(), 'ci_lower_mrca_date_before_inf'] = tmrca_spec_inf_clades_nohypmut_sub.loc[tmrca_spec_inf_clades_nohypmut_sub['ci_lower_mrca_date_before_inf'].isna(), 'days_in_hosp']
 
 tmrca_spec_inf_clades_nohypmut_sub['mrca_date_since_hosp_cilower'] =  tmrca_spec_inf_clades_nohypmut['days_in_hosp'] - extract_listentry_pd_col(tmrca_spec_inf_clades_nohypmut['ci95_tmrca_fin'], 0)
 tmrca_spec_inf_clades_nohypmut_sub['mrca_date_since_hosp_cihigher'] =  tmrca_spec_inf_clades_nohypmut['days_in_hosp'] - extract_listentry_pd_col(tmrca_spec_inf_clades_nohypmut['ci95_tmrca_fin'], 1)
@@ -528,5 +508,4 @@ for rowidx, row in tmrca_spec_inf_clades_nohypmut_sub.iterrows():
 
 ## correlate molecular clocks with tmrca values
 tmrca_spec_inf_clades_nohypmut[['mut_rate_fin', 'tmrca_fin']] = tmrca_spec_inf_clades_nohypmut[['mut_rate_fin', 'tmrca_fin']].astype(float)
-# stats.pearsonr(tmrca_spec_inf_clades_nohypmut['mut_rate_fin'], tmrca_spec_inf_clades_nohypmut['tmrca_fin'])
 print(stats.spearmanr(tmrca_spec_inf_clades_nohypmut['mut_rate_fin'], tmrca_spec_inf_clades_nohypmut['tmrca_fin']))

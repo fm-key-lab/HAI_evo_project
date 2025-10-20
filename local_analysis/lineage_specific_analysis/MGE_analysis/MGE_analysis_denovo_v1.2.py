@@ -24,7 +24,7 @@ import os
 import glob
 
 # %% Import APY/MGE modules
-SCRIPTS_DIRECTORY = os.getcwd() + "/modules/"
+SCRIPTS_DIRECTORY = os.getcwd() + '/../../modules/'
 sys.path.insert(0, SCRIPTS_DIRECTORY)
 
 import analysispy_module as apy

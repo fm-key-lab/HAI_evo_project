@@ -1,0 +1,59 @@
+## cd ~/Nextcloud/keylab/projects/mf_2020_hap/labbook/data_analysis/2023/protein_prediction/fimZ_structure/MPCDF_Alpfafold3_ABPS_FimZ_FimY
+## /Applications/ChimeraX-1.6.1.app/Contents/bin/ChimeraX --script ~/Nextcloud/keylab/projects/mf_2020_hap/labbook/data_analysis/2023/protein_prediction/fimZ_structure/MPCDF_Alpfafold3_ABPS_FimZ_FimY/scripts/chimerax/chimerax_load_and_snapshot_fimZ.cxc
+
+# Load structure and DX file
+open alphafold3/fimZ/fimz/fimz_model.cif
+open alphafold3/fimZ/apbs/fimz_model_chainZ_apbs.dx
+
+# Display molecular surface
+hide cartoons
+hide #!2
+surface #1
+
+# Change color of the dx file
+# volume #2 color red color blue
+
+# Color surface by DX map (electrostatic potential or similar); adjust mean value to mean value of map
+color electrostatic #1 map #2 palette -1.975,#ff0000:1.025,#ffffff:4.025,#0000ff
+
+# Set surface transparency (0 = opaque, 1 = fully transparent)
+transparency 30
+
+# Set background color to white
+set bgColor white
+
+# Orient protein as you wish
+turn z -90
+turn x 0
+turn y -120
+
+# Color ribbon
+show #1 cartoons
+color #1 darkgrey cartoons;
+
+# Color mutation in FimZ
+show #1:126 atoms
+color #1:126 black  atoms
+
+# Snapshot with lighting
+lighting soft
+lighting shadows false
+save figures/fimz_model_lightsoft_front.png supersample 3
+
+# Snapshot without lighting
+lighting full
+lighting shadows false
+save figures/fimz_model_lightfull_front.png supersample 3
+
+# Second rotation
+turn x -45
+
+# Snapshot with lighting
+lighting soft
+lighting shadows false
+#save figures/fimz_model_lightsoft_front_45deg.png supersample 3
+
+# Snapshot without lighting
+lighting full
+lighting shadows false
+#save figures/fimz_model_lightfull_front_45deg.png supersample 3

@@ -40,7 +40,7 @@ from matplotlib import rc
 %matplotlib qt
 
 ## Directory to analysispy_module.py
-SCRIPTS_DIRECTORY = os.getcwd() + "/modules/"
+SCRIPTS_DIRECTORY = os.getcwd() + "/../../modules/"
 sys.path.insert(0, SCRIPTS_DIRECTORY)
 
 #import analysispy_module_2022 as apy

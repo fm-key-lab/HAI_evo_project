@@ -19,7 +19,7 @@ echo "Starting analysis py"
 date
 
 ## run python unbuffered to get immediate stdout prints
-python -u 2024_01_mf_hap2020_analysispy_public_data_logan_v1_2_gubbins.py
+python -u hap2020_analysispy_public_data_logan_v1_2_gubbins.py
 
 date
 

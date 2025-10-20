@@ -11,7 +11,7 @@
         "mem"            : 2000,
         "output"         : "logs/other_%j.out_err.txt",
         "error"          : "logs/other_%j.out_err.txt",
-        "mail-user"      : "fenk@mpiib-berlin.mpg.de",
+        "mail-user"      : "UPDATE_YOUR_EMAIL_ADDRESS",
         "mail-type"      : "FAIL"
     },
     "spades" : {

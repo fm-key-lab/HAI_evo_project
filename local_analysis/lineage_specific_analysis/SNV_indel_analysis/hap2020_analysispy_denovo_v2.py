@@ -45,7 +45,7 @@ plt.rcParams['pdf.fonttype'] = 42
 plt.rcParams['svg.fonttype'] = 'none'
 
 ## Directory to analysispy_module.py
-SCRIPTS_DIRECTORY = "/Users/ad_lemur/Nextcloud/keylab/projects/mf_2020_hap/labbook/data_analysis/2022/analysis_scripts/modules/"
+SCRIPTS_DIRECTORY = os.getcwd() + '/../../modules/'
 #SCRIPTS_DIRECTORY = os.getcwd() + "/modules/"
 sys.path.insert(0, SCRIPTS_DIRECTORY)
 
