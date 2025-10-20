@@ -51,7 +51,7 @@ Raw data processing is implemented to be conducted on a computing cluster (see *
 2. `raw_data_processing/species_specific/mapping`: Alignment of quality-filtered reads against a reference genome
 3. `raw_data_processing/species_specific/case`: Generation of a multi-dimensional matrix (`candidate_mutation_table.pickle.gz`) for each reference genome containing candidate SNVs and respective summary metrics
 
-Further instructions are described [here](raw_data_processing/). 
+Further information can be found [here](raw_data_processing/). 
 
 ### Species-specific SNV-based analysis
 
@@ -61,7 +61,7 @@ Prerequisites:
 
 Following the raw data processing, the species-specific evolutionary analysis (`local_analysis/species_specific_analysis/SNV_analysis/hap2020_analysispy_refbased_v3.py`) utilizes the output from the raw data processing (`candidate_mutation_table.pickle.gz`) to generate pathogen-patient pair specific maximum likelihood phylogenies to identify lineage clusters.
 
-Further instructions are described [here](local_analysis/species_specific_analysis/). 
+Further information can be found [here](local_analysis/species_specific_analysis/). 
 
 <br/><br/>
 
@@ -85,7 +85,7 @@ Raw data processing is implemented to be conducted on a computing cluster (see *
 2. `raw_data_processing/lineage_specific/mapping`: Alignment of quality-filtered reads against the respective *de novo* assembled lineage-specific genome
 3. `raw_data_processing/lineage_specific/case`: Generation of a multi-dimensional matrix for each *de novo* assembled lineage-specific genome containing candidate SNVs, indels and respective summary metrics for each variant and two coverage matrices
 
-Further instructions are described [here](raw_data_processing/). 
+Further information can be found [here](raw_data_processing/). 
 
 ### Lineage-specific SNV- and indel-based analysis
 
@@ -95,7 +95,7 @@ Prerequisites:
 
 The lineage-specific SNV and indel analysis (`local_analysis/lineage_specific_analysis/SNV_indel_analysis/hap2020_analysispy_denovo_v2.py`) utilizes the output from the raw data processing (`candidate_mutation_table.pickle.gz`) to perform evolutionary analyses (phylogenetic reconstruction, ancestral allele inference, and molecular clock and parallel evolution analysis).
 
-Further instructions are described [here](local_analysis/lineage_specific_analysis). 
+Further information can be found [here](local_analysis/lineage_specific_analysis). 
 
 ### Lineage-specific MGE-based analysis
 
@@ -105,7 +105,7 @@ Prerequisites:
 
 The MGE analysis (`local_analysis/lineage_specific_analysis/MGE_analysis/MGE_analysis_denovo_v1.2.py`) utilizes two coverage matrices generated at the end of the raw data processing (`cov_raw_sparsecsr_mat.npz`, `cov_norm_sparsecsr_mat.npz`) to identify gained/lost mobile genetic elements within each lineage.
 
-Further instructions are described [here](local_analysis/lineage_specific_analysis). 
+Further information can be found [here](local_analysis/lineage_specific_analysis). 
 
 ### Phenotype analysis
 
@@ -132,7 +132,7 @@ Raw data processing is implemented to be conducted on a computing cluster (see *
 2. `raw_data_processing/species_specific/mapping`: Alignment of quality-filtered reads (≥ 80% reads are assigned as *E. hormaechei*) against the *de novo* assembled lineage-specific *E. hormaechei* genome (see **Lineage-specific analysis**)
 3. `raw_data_processing/species_specific/case`: Generation of a multi-dimensional matrix for each reference genome containing candidate SNVs and respective summary metrics
 
-Further instructions are described [here](raw_data_processing). 
+Further information can be found [here](raw_data_processing). 
 
 ### Public data SNV-based analysis
 
@@ -143,7 +143,7 @@ Prerequisites:
 
 The public data SNV analysis (`local_analysis/public_data_analysis/SNV_analysis/trigger_anapy_w_BSMLtree.sh`) utilizes the output from the raw data processing (`candidate_mutation_table.pickle.gz`) to perform filter isolates and candidate SNVs and generates the final phylogenetic tree.
 
-Further instructions are described [here](local_analysis/public_data_analysis). 
+Further information can be found [here](local_analysis/public_data_analysis). 
 
 <br/><br/>
 
@@ -151,4 +151,4 @@ Further instructions are described [here](local_analysis/public_data_analysis).
 
 Code for additional figures generated for the publication can be found in `local_analysis/additional_figure_generation`.
 
-Further instructions are described [here](local_analysis/additional_figure_generation). 
+Further information can be found [here](local_analysis/additional_figure_generation). 
