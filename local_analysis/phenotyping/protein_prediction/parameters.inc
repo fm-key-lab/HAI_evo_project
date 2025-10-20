@@ -1,8 +1,6 @@
 AF3_MSA_JSON_PATH=/ptmp/mfenk/data/mf_2020_hap/batch1/prot_prediction/alphafold3/fimZ/fimZ.json                    ## full path of json file including .json extension
 AF3_MSA_OUTPUT_DIR=/ptmp/mfenk/data/mf_2020_hap/batch1/prot_prediction/alphafold3/fimZ           ## absolute path for output of entire AF3 prediction
 PROJECT_NAME_LOWER=$( basename ${AF3_MSA_JSON_PATH} .json | tr '[:upper:]' '[:lower:]' ) ## is in lower case!
-AF3_INFERENCE_JSON_PATH=${AF3_MSA_OUTPUT_DIR}/${PROJECT_NAME_LOWER}/${PROJECT_NAME_LOWER}_data.json
-AF3_INFERENCE_OUTPUT_DIR=${AF3_MSA_OUTPUT_DIR}
 
 APBS_EXECUTABLE=${HOME}/library/apbs/APBS-3.4.1/bin/apbs                                ## APBS executable
 DEFAULT_APBS_PARAMETERS=${HOME}/library/apbs/apbs_input_template.in                     ## APBS input file
