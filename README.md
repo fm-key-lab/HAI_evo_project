@@ -81,7 +81,7 @@ Prerequisites:
 
 Following the raw data processing, the species-specific evolutionary analysis (`local_analysis/species_specific_analysis/SNV_analysis/hap2020_analysispy_refbased_v3.py`) utilizes the output from the raw data processing (`candidate_mutation_table.pickle.gz`) to generate pathogen-patient pair specific maximum likelihood phylogenies to identify lineage clusters.
 
-
+Further instructions are described [here](./local_analysis/species_specific_analysis/README.md). 
 
 ## Lineage-specific analyses 
 
@@ -113,6 +113,8 @@ Prerequisites:
 
 The lineage-specific SNV and indel analysis (`local_analysis/lineage_specific_analysis/SNV_indel_analysis/hap2020_analysispy_denovo_v2.py`) utilizes the output from the raw data processing (`candidate_mutation_table.pickle.gz`) to perform evolutionary analyses (phylogenetic reconstruction, ancestral allele inference, and molecular clock and parallel evolution analysis).
 
+Further instructions are described [here](./local_analysis/lineage_specific_analysis/README.md). 
+
 ### Lineage-specific MGE-based analysis
 
 Prerequisites: 
@@ -120,6 +122,8 @@ Prerequisites:
 - Installation of the analysis conda environment (`envs/analysis_conda_env.yaml`)
 
 The MGE analysis (`local_analysis/lineage_specific_analysis/MGE_analysis/MGE_analysis_denovo_v1.2.py`) utilizes two coverage matrices generated at the end of the raw data processing (`cov_raw_sparsecsr_mat.npz`, `cov_norm_sparsecsr_mat.npz`) to identify gained/lost mobile genetic elements within each lineage.
+
+Further instructions are described [here](./local_analysis/lineage_specific_analysis/README.md). 
 
 ### Phenotype analysis
 
@@ -157,8 +161,11 @@ Prerequisites:
 
 The public data SNV analysis (`local_analysis/public_data_analysis/SNV_analysis/trigger_anapy_w_BSMLtree.sh`) utilizes the output from the raw data processing (`candidate_mutation_table.pickle.gz`) to perform filter isolates and candidate SNVs and generates the final phylogenetic tree.
 
+Further instructions are described [here](./local_analysis/public_data_analysis/README.md). 
 
 
 ## Additional figures
 
 Code for additional figures generated for the publication can be found in `local_analysis/additional_figure_generation`.
+
+Further instructions are described [here](./local_analysis/additional_figure_generation/README.md). 
