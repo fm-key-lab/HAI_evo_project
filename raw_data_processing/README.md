@@ -38,6 +38,27 @@ Each `Snakemake` pipeline follows the same structure:
 Before running the `Snakemake` pipeline, minor modifications need to be conducted. 
 
 - `Snakefile`: Update the paths pointing to the reference genomes & databases 
+    - `kraken2`: requires a `Kraken 2` and `Bracken` database (see [here](https://github.com/DerrickWood/kraken2/wiki/Manual#kraken-2-databases) and [here](https://github.com/jenniferlu717/Bracken?tab=readme-ov-file#step-0-build-a-kraken-1krakenuniqkraken2-database))
+        - The `Kraken 2` database was build including all bacteria, archaea, plasmid, viral, human, fungi, protozoa and UniVec databases:
+            ```
+            ## Download taxonomies
+            kraken2-build --download-taxonomy --db ${DBNAME}
+            kraken2-build --download-library bacteria --db ${DBNAME}
+            kraken2-build --download-library archaea --db ${DBNAME}
+            kraken2-build --download-library plasmid --db ${DBNAME}
+            kraken2-build --download-library viral --db ${DBNAME}
+            kraken2-build --download-library human --db ${DBNAME}
+            kraken2-build --download-library fungi --db ${DBNAME}
+            kraken2-build --download-library protozoa --db ${DBNAME}
+            kraken2-build --download-library UniVec --db ${DBNAME}
+            ## Build actual DB
+            kraken2-build --build --use-ftp --threads 72 --db ${DBNAME}
+            ## NOTE: DB should not be cleaned, otherwise the Bracken DB cannot be created!
+            ## build Bracken DB
+            ## -t threads, -k kmer length (kraken default = 35), -l read-length (dependent on the sequencing data, and based on recommondations, min read length might be the best (but is not fairly tested: https://github.com/jenniferlu717/Bracken/issues/60)
+            bracken-build -d ${DBNAME} -t 72 -k 35 -l 100
+            ```
+    - `mapping` & `kraken2`: All mapping (`species_specific/mapping/`, `lineage_specific/mapping/`) and kraken2 (`kraken2`) pipelines require the [Bakta database](https://github.com/oschwengers/bakta?tab=readme-ov-file#database). For this, the full database ([version 4.0](https://zenodo.org/records/7025248)) has been installed.
 - `snakemakeslurm.sh`: Update the `tmp/` directories and the `conda-prefix` path 
 - `samples.csv`: Update paths, sample names etc for individual usage. 
     - The samples csvs used for the various analyses are stored within the respective directories
@@ -49,6 +70,5 @@ Before running the `Snakemake` pipeline, minor modifications need to be conducte
 
 1. Generate a log directory within the pipeline's directory `mkdir log`. 
 2. Run the snakemake pipeline by calling `bash snakemakeslurm.sh 2>&1 | tee logs/0_primary_${date}.log` from within the pipeline's directory. 
-
 
 
