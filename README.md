@@ -2,7 +2,7 @@
 
 Here we present the computational code part of the analysis presented in: 
 
-Fenk, M., Hrdina, A., Winans, J. B., Soerensen, M., Ostertag, L., Coquery, E., Sow, F., Petros, S., Stingu, C.-S., Lippmann, N., Nadell, C. D., Iatsenko, I., Pasieka, B., & Key, F. M. (2025). Colonization, translocation, and evolution of opportunistic pathogens during hospital-associated infections. bioRxiv. https://doi.org/10.1101/2025.10.23.683921
+Fenk M., Hrdina A., Winans J. B., Soerensen M., Ostertag L., Coquery E., Sow F., Petros S., Stingu C.-S., Lippmann N., Nadell C. D., Iatsenko I., Pasieka B., & Key F. M. Colonization, translocation, and evolution of opportunistic pathogens during hospital-associated infections. bioRxiv (2025) doi:10.1101/2025.10.23.683921.
 
 We hope you find the code useful. In case you recycle it for your own analyses please cite our study.
 
