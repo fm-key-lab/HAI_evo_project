@@ -2,7 +2,7 @@
 
 Here we present the computational code part of the analysis presented in: 
 
-Fenk M., Hrdina A., Winans J. B., Soerensen M., Ostertag L., Coquery E., Sow F., Petros S., Stingu C., Lippmann N., Nadell C. D., Iatsenko I., Pasieka B., Key F. M. Colonization, translocation, and evolution of opportunistic pathogens during hospital-associated infections. 
+Fenk, M., Hrdina, A., Winans, J. B., Soerensen, M., Ostertag, L., Coquery, E., Sow, F., Petros, S., Stingu, C.-S., Lippmann, N., Nadell, C. D., Iatsenko, I., Pasieka, B., & Key, F. M. (2025). Colonization, translocation, and evolution of opportunistic pathogens during hospital-associated infections. bioRxiv. https://doi.org/10.1101/2025.10.23.683921
 
 We hope you find the code useful. In case you recycle it for your own analyses please cite our study.
 
@@ -43,7 +43,7 @@ Prerequisites:
 - Installation of the `Snakemake` conda environment (`envs/snakemake_conda_env.yaml`)
 - Access to a computing cluster with `slurm` workload manager
 
-Raw data processing is implemented to be conducted on a computing cluster (see **Prerequisites**) using multiple `Snakemake` pipelines. 
+Raw data processing is implemented to be conducted on a computing cluster (see [Prerequisites](#prerequisites)) using multiple `Snakemake` pipelines. 
 
 1. `raw_data_processing/kraken2`: Taxonomic classification to estimate the abundance of reads of the focal species within each sample, sequence typing & *de novo* genome assemblies of each individual sample.
     - prior to run the pipeline, a database for kraken and bracken need to be built
@@ -77,9 +77,9 @@ Prerequisites:
 - Access to a computing cluster with `slurm` workload manager
 - Samples clustered to distinct lineages based on the identified lineage cutoff and the phylogenies from the species-specific analysis (`raw_data_processing/lineage_specific/assembly/sample_lineage_files`)
 
-Raw data processing is implemented to be conducted on a computing cluster (see **Prerequisites**) using multiple `Snakemake` pipelines. 
+Raw data processing is implemented to be conducted on a computing cluster (see [Prerequisites](#prerequisites)) using multiple `Snakemake` pipelines. 
 
-0. `raw_data_processing/kraken2`: (required from **Species-specific analysis**)
+0. `raw_data_processing/kraken2`: (required from [Species-specific analysis](#species-specific-analyses))
 1. `raw_data_processing/lineage_specific/assembly`: Assembly of lineage-specific *de novo* genomes
     - based on the reconstructed phylogenies and the taxonomic classification from the species-specific analysis, high-quality samples of each lineage need to be provided (see `raw_data_processing/lineage_specific/assembly/sample_lineage_files`)
 2. `raw_data_processing/lineage_specific/mapping`: Alignment of quality-filtered reads against the respective *de novo* assembled lineage-specific genome
@@ -125,11 +125,11 @@ Prerequisites:
 - Access to a computing cluster with `slurm` workload manager
 - Annotated *de novo* assembled lineage-specific *E. hormaechei* genome (`metadata/lineage_specific_assembled_genomes/P07_Ehormaechei-c1`)
 
-Raw data processing is implemented to be conducted on a computing cluster (see **Prerequisites**) using multiple `Snakemake` pipelines. 
+Raw data processing is implemented to be conducted on a computing cluster (see [Prerequisites](#prerequisites)) using multiple `Snakemake` pipelines. 
 
 1. `raw_data_processing/kraken2`: Taxonomic classification to estimate the abundance of reads of the focal species within each sample, sequence typing & *de novo* genome assemblies of each individual sample.
     - to run the samples on the data, use `raw_data_processing/kraken2/Pub_data_samples.csv`
-2. `raw_data_processing/species_specific/mapping`: Alignment of quality-filtered reads (≥ 80% reads are assigned as *E. hormaechei*) against the *de novo* assembled lineage-specific *E. hormaechei* genome (see **Lineage-specific analysis**)
+2. `raw_data_processing/species_specific/mapping`: Alignment of quality-filtered reads (≥ 80% reads are assigned as *E. hormaechei*) against the *de novo* assembled lineage-specific *E. hormaechei* genome (see [Lineage-specific analysis](#lineage-specific-analyses))
 3. `raw_data_processing/species_specific/case`: Generation of a multi-dimensional matrix for each reference genome containing candidate SNVs and respective summary metrics
 
 Further information can be found [here](raw_data_processing). 
